@@ -125,9 +125,7 @@ fn main() -> Result<()> {
 
             let variants = dropped_level_variants(levels);
 
-            let safe_reports = variants.into_iter().filter(|report| report_is_safe(report));
-
-            safe_reports.count() >= 1
+            variants.into_iter().any(|report| report_is_safe(&report))
         });
 
         Ok(lines.count())
