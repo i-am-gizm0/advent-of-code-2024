@@ -24,7 +24,7 @@ fn main() -> Result<()> {
     //region Part 1
     println!("=== Part 1 ===");
 
-    #[derive(PartialEq)]
+    #[derive(PartialEq, Debug)]
     enum ChangeType {
         Increasing,
         Decreasing,
@@ -82,17 +82,74 @@ fn main() -> Result<()> {
     //endregion
 
     //region Part 2
-    // println!("\n=== Part 2 ===");
-    //
-    // fn part2<R: BufRead>(reader: R) -> Result<usize> {
-    //     Ok(0)
-    // }
-    //
-    // assert_eq!(0, part2(BufReader::new(TEST.as_bytes()))?);
-    //
-    // let input_file = BufReader::new(File::open(INPUT_FILE)?);
-    // let result = time_snippet!(part2(input_file)?);
-    // println!("Result = {}", result);
+    println!("\n=== Part 2 ===");
+
+    fn part2<R: BufRead>(reader: R) -> Result<usize> {
+        let lines = reader.lines().flatten().filter_map(|line| {
+            let parts: Vec<_> = line
+                .split(' ')
+                .map(|level| i32::from_str_radix(level, 10).unwrap())
+                .collect();
+
+            let change_type =
+                get_change_type(get_diff_between_elements(&parts, 0, 1).unwrap()).unwrap();
+
+            println!("change type: {:?}", change_type);
+
+            let mut unsafe_levels: u32 = 0;
+
+            for i in (Range {
+                start: 0,
+                end: parts.len() - 1,
+            }) {
+                print!(
+                    "({}, {})\t",
+                    parts.get(i).unwrap(),
+                    parts.get(i + 1).unwrap()
+                );
+                let diff_to_next = get_diff_between_elements(&parts, i, i + 1).unwrap();
+                if get_change_type(diff_to_next)
+                    .map_or(true, |this_change| this_change != change_type)
+                {
+                    println!("unsafe change type");
+                    unsafe_levels += 1;
+                    continue;
+                }
+
+                let abs_diff = diff_to_next.unsigned_abs();
+                if !(abs_diff >= 1 && abs_diff <= 3) {
+                    println!("unsafe difference");
+                    unsafe_levels += 1;
+                    continue;
+                }
+
+                println!("safe!");
+            }
+
+            let dampened_safe = unsafe_levels <= 1;
+
+            println!(
+                "{:?} is {} ({} unsafe levels)",
+                parts,
+                if dampened_safe { "safe" } else { "unsafe" },
+                unsafe_levels
+            );
+
+            if dampened_safe {
+                Some(parts)
+            } else {
+                None
+            }
+        });
+
+        Ok(lines.count())
+    }
+
+    assert_eq!(4, part2(BufReader::new(TEST.as_bytes()))?);
+
+    let input_file = BufReader::new(File::open(INPUT_FILE)?);
+    let result = time_snippet!(part2(input_file)?);
+    println!("Result = {}", result);
     //endregion
 
     Ok(())
