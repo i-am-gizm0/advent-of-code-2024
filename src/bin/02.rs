@@ -2,6 +2,7 @@ use adv_code_2024::*;
 use anyhow::*;
 use code_timing_macros::time_snippet;
 use const_format::concatcp;
+use itertools::Itertools;
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 use std::ops::Range;
@@ -44,32 +45,48 @@ fn main() -> Result<()> {
         }
     }
 
-    fn part1<R: BufRead>(reader: R) -> Result<usize> {
-        let lines = reader.lines().flatten().filter_map(|line| {
-            let parts: Vec<_> = line
-                .split(' ')
-                .map(|level| i32::from_str_radix(level, 10).unwrap())
-                .collect();
+    fn parse_levels_from_report(line: &String) -> Vec<i32> {
+        line.split(' ')
+            .map(|level| i32::from_str_radix(level, 10).unwrap())
+            .collect()
+    }
 
-            let change_type = get_change_type(get_diff_between_elements(&parts, 0, 1).unwrap())?;
+    fn report_is_safe(levels: &Vec<i32>) -> bool {
+        let change_type = match get_change_type(get_diff_between_elements(&levels, 0, 1).unwrap()) {
+            Some(x) => x,
+            None => return false,
+        };
 
-            for i in (Range {
-                start: 0,
-                end: parts.len() - 1,
-            }) {
-                let diff_to_next = get_diff_between_elements(&parts, i, i + 1).unwrap();
-                if get_change_type(diff_to_next)? != change_type {
-                    return None;
+        for i in (Range {
+            start: 0,
+            end: levels.len() - 1,
+        }) {
+            let diff_to_next = get_diff_between_elements(&levels, i, i + 1).unwrap();
+
+            match get_change_type(diff_to_next) {
+                Some(this_change) => {
+                    if this_change != change_type {
+                        return false;
+                    }
                 }
-
-                let abs_diff = diff_to_next.unsigned_abs();
-                if !(abs_diff >= 1 && abs_diff <= 3) {
-                    return None;
+                None => {
+                    return false;
                 }
             }
 
-            Some(parts)
-        });
+            let abs_diff = diff_to_next.unsigned_abs();
+            if !(abs_diff >= 1 && abs_diff <= 3) {
+                return false;
+            }
+        }
+        true
+    }
+
+    fn part1<R: BufRead>(reader: R) -> Result<usize> {
+        let lines = reader
+            .lines()
+            .flatten()
+            .filter(|line| report_is_safe(&parse_levels_from_report(line)));
 
         Ok(lines.count())
     }
@@ -84,62 +101,33 @@ fn main() -> Result<()> {
     //region Part 2
     println!("\n=== Part 2 ===");
 
+    fn dropped_level_variants(levels: Vec<i32>) -> Vec<Vec<i32>> {
+        let mut variants = Vec::new();
+        for i in (Range {
+            start: 0,
+            end: levels.len(),
+        }) {
+            let pre = &levels[..i];
+            let post = &levels[i + 1..];
+            variants.push(pre.iter().chain(post).cloned().collect_vec());
+        }
+        variants
+    }
+
     fn part2<R: BufRead>(reader: R) -> Result<usize> {
-        let lines = reader.lines().flatten().filter_map(|line| {
-            let parts: Vec<_> = line
-                .split(' ')
-                .map(|level| i32::from_str_radix(level, 10).unwrap())
-                .collect();
+        let lines = reader.lines().flatten().filter(|line| {
+            let levels = parse_levels_from_report(line);
 
-            let change_type =
-                get_change_type(get_diff_between_elements(&parts, 0, 1).unwrap()).unwrap();
-
-            println!("change type: {:?}", change_type);
-
-            let mut unsafe_levels: u32 = 0;
-
-            for i in (Range {
-                start: 0,
-                end: parts.len() - 1,
-            }) {
-                print!(
-                    "({}, {})\t",
-                    parts.get(i).unwrap(),
-                    parts.get(i + 1).unwrap()
-                );
-                let diff_to_next = get_diff_between_elements(&parts, i, i + 1).unwrap();
-                if get_change_type(diff_to_next)
-                    .map_or(true, |this_change| this_change != change_type)
-                {
-                    println!("unsafe change type");
-                    unsafe_levels += 1;
-                    continue;
-                }
-
-                let abs_diff = diff_to_next.unsigned_abs();
-                if !(abs_diff >= 1 && abs_diff <= 3) {
-                    println!("unsafe difference");
-                    unsafe_levels += 1;
-                    continue;
-                }
-
-                println!("safe!");
+            let is_safe_natively = report_is_safe(&levels);
+            if is_safe_natively {
+                return true;
             }
 
-            let dampened_safe = unsafe_levels <= 1;
+            let variants = dropped_level_variants(levels);
 
-            println!(
-                "{:?} is {} ({} unsafe levels)",
-                parts,
-                if dampened_safe { "safe" } else { "unsafe" },
-                unsafe_levels
-            );
+            let safe_reports = variants.into_iter().filter(|report| report_is_safe(report));
 
-            if dampened_safe {
-                Some(parts)
-            } else {
-                None
-            }
+            safe_reports.count() >= 1
         });
 
         Ok(lines.count())
