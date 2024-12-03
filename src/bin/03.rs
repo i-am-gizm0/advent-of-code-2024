@@ -89,19 +89,30 @@ fn main() -> Result<()> {
                 .collect::<Vec<_>>()
         });
 
-        let mut enabled = true;
-        let mut sum = 0;
-        for operation in operations {
-            match operation {
-                Operation::Do => enabled = true,
-                Operation::Dont => enabled = false,
-                Operation::Mul(mul_call) => {
-                    if enabled {
-                        sum += mul_call.call()
-                    }
+        enum OperationResult {
+            Enabled(i32),
+            Disabled(i32),
+        }
+
+        impl From<OperationResult> for i32 {
+            fn from(value: OperationResult) -> Self {
+                match value {
+                    OperationResult::Enabled(v) => v,
+                    OperationResult::Disabled(v) => v,
                 }
             }
         }
+
+        let sum = operations
+            .fold(OperationResult::Enabled(0), |result, operation| match operation {
+                Operation::Do => OperationResult::Enabled(result.into()),
+                Operation::Dont => OperationResult::Disabled(result.into()),
+                Operation::Mul(mul_call) => match result {
+                    OperationResult::Enabled(v) => OperationResult::Enabled(v + mul_call.call()),
+                    OperationResult::Disabled(_) => result,
+                },
+            })
+            .into();
 
         Ok(sum)
     }
