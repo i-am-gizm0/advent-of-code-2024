@@ -25,6 +25,7 @@ MXMXAXMASX
 ";
 
 /*
+part 1:
 ....XXMAS.
 .SAMXMS...
 ...S..A...
@@ -36,6 +37,17 @@ S.S.S.S.SS
 ..M.M.M.MM
 .X.X.XMASX
 
+part 2:
+.M.S......
+..A..MSMS.
+.M.S.MAA..
+..A.ASMSM.
+.M.S.M....
+..........
+S.S.S.S.S.
+.A.A.A.A..
+M.M.M.M.M.
+..........
  */
 
 #[derive(Debug)]
@@ -130,7 +142,7 @@ fn main() -> Result<()> {
                 Some(Coord { x, y })
             });
             let all_in_bounds = coords.to_owned().borrow_mut().all(|v| match v {
-                Some(Coord { x, y }) => x < grid.len() && y < grid.first().unwrap().len(),
+                Some(Coord { x, y }) => y < grid.len() && x < grid.first().unwrap().len(),
                 None => false,
             });
             if !all_in_bounds {
@@ -168,17 +180,61 @@ fn main() -> Result<()> {
     //endregion
 
     //region Part 2
-    // println!("\n=== Part 2 ===");
-    //
-    // fn part2<R: BufRead>(reader: R) -> Result<usize> {
-    //     Ok(0)
-    // }
-    //
-    // assert_eq!(0, part2(BufReader::new(TEST.as_bytes()))?);
-    //
-    // let input_file = BufReader::new(File::open(INPUT_FILE)?);
-    // let result = time_snippet!(part2(input_file)?);
-    // println!("Result = {}", result);
+    println!("\n=== Part 2 ===");
+
+    fn part2<R: BufRead>(reader: R) -> Result<usize> {
+        let grid: Vec<Vec<char>> = reader
+            .lines()
+            .flatten()
+            .map(|line| line.chars().collect_vec())
+            .collect_vec();
+
+        let a_instances: Vec<Coord> = (&grid)
+            .iter()
+            .enumerate()
+            .flat_map(|(y, line)| {
+                line.iter()
+                    .enumerate()
+                    .filter_map(move |(x, char)| match char {
+                        &'A' => Some(Coord { x, y }),
+                        _ => None,
+                    })
+            })
+            .collect();
+
+        Ok(a_instances
+            .iter()
+            .filter(|coord| {
+                let Coord { x, y } = &coord;
+                let neighbors_in_bounds = y >= &1
+                    && y < &(grid.len() - 1)
+                    && x >= &1
+                    && x < &(grid.first().unwrap().len() - 1);
+
+                if !neighbors_in_bounds {
+                    return false;
+                }
+
+                // \
+                let tl = grid[y - 1][x - 1];
+                let br = grid[y + 1][x + 1];
+                if !((tl == 'M' && br == 'S') || (tl == 'S' && br == 'M')) {
+                    return false;
+                }
+
+                // /
+                let bl = grid[y + 1][x - 1];
+                let tr = grid[y - 1][x + 1];
+                return (bl == 'M' && tr == 'S') || (bl == 'S' && tr == 'M');
+            })
+            .count())
+    }
+
+    assert_eq!(9, part2(BufReader::new(TEST.as_bytes()))?);
+
+    let input_file = BufReader::new(File::open(INPUT_FILE)?);
+    let result = time_snippet!(part2(input_file)?);
+    println!("Result = {}", result);
     //endregion
 
     Ok(())
