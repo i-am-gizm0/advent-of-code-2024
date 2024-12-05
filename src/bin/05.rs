@@ -3,6 +3,7 @@ use anyhow::*;
 use code_timing_macros::time_snippet;
 use const_format::concatcp;
 use itertools::Itertools;
+use std::cmp::Ordering;
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::fs::File;
 use std::io::{BufRead, BufReader};
@@ -85,22 +86,29 @@ fn main() -> Result<()> {
         }
     }
 
+    fn correctly_ordered(update: &Vec<usize>, rules: &HashMap<usize, Vec<usize>>) -> bool {
+        let mut seen: HashSet<usize> = HashSet::new();
+        for page in update {
+            if disallowed_seen(page, &seen, &rules) {
+                return false;
+            }
+            seen.insert(*page);
+        }
+        // Correctly ordered!
+        true
+    }
+
+    fn middle_number(update: &Vec<usize>) -> usize {
+        update[update.len() / 2]
+    }
+
     fn part1<R: BufRead>(reader: R) -> Result<usize> {
         let (rules, updates) = parse(reader);
 
         Ok(updates
             .iter()
-            .filter_map(|update| -> Option<usize> {
-                let mut seen: HashSet<usize> = HashSet::new();
-                for page in update {
-                    if disallowed_seen(page, &seen, &rules) {
-                        return None;
-                    }
-                    seen.insert(*page);
-                }
-                // This update is correctly ordered!
-                Some(update[update.len() / 2])
-            })
+            .filter(|update| correctly_ordered(update, &rules))
+            .map(middle_number)
             .sum())
     }
 
@@ -112,17 +120,48 @@ fn main() -> Result<()> {
     //endregion
 
     //region Part 2
-    // println!("\n=== Part 2 ===");
-    //
-    // fn part2<R: BufRead>(reader: R) -> Result<usize> {
-    //     Ok(0)
-    // }
-    //
-    // assert_eq!(0, part2(BufReader::new(TEST.as_bytes()))?);
-    //
-    // let input_file = BufReader::new(File::open(INPUT_FILE)?);
-    // let result = time_snippet!(part2(input_file)?);
-    // println!("Result = {}", result);
+    println!("\n=== Part 2 ===");
+
+    fn x_before_y(x: &usize, y: &usize, rules: &HashMap<usize, Vec<usize>>) -> bool {
+        match rules.get(x) {
+            Some(rule) => rule.contains(y),
+            None => false,
+        }
+    }
+
+    fn part2<R: BufRead>(reader: R) -> Result<usize> {
+        let (rules, updates) = parse(reader);
+
+        Ok(updates
+            .iter()
+            .filter(|update| !correctly_ordered(update, &rules))
+            .map(|update| {
+                // Sort update according to rules
+                let mut update = update.to_owned();
+                update.sort_by(|a, b| {
+                    let a_before_b = x_before_y(a, b, &rules);
+                    if a_before_b {
+                        return Ordering::Less;
+                    }
+
+                    let b_before_a = x_before_y(b, a, &rules);
+                    if b_before_a {
+                        return Ordering::Greater;
+                    } else {
+                        return Ordering::Equal;
+                    }
+                });
+                update
+            })
+            .map(|update| middle_number(&update))
+            .sum())
+    }
+
+    assert_eq!(123, part2(BufReader::new(TEST.as_bytes()))?);
+
+    let input_file = BufReader::new(File::open(INPUT_FILE)?);
+    let result = time_snippet!(part2(input_file)?);
+    println!("Result = {}", result);
     //endregion
 
     Ok(())
