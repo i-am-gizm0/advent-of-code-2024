@@ -1,0 +1,46 @@
+#!/usr/bin/env bash
+
+function usage() {
+    echo "USAGE: $0 (day)"
+    exit 1
+}
+
+if [ -z ${1} ]; then
+
+    # No date specified. If it's December, initialize to the current date
+    if (( `date +%m` != 12 )); then
+        usage
+    fi
+    DAY=`date +%d`
+
+else
+
+    # Format the day with zero padding
+    DAY=`printf %02d $1 2>/dev/null`
+    
+    if [[ $? -ne 0 ]]; then
+        usage
+    fi
+
+    # Check the specified day is valid
+    UNFORMATTED_DAY=$1
+    if (( UNFORMATTED_DAY < 1 || UNFORMATTED_DAY > 31 )); then
+        echo "December only has days [1, 31]"
+        echo
+        usage
+    fi
+
+fi
+
+echo "Initializing day $DAY..."
+
+BIN=src/bin
+RS_SRC=$BIN/$DAY.rs
+
+cp $BIN/NN.rs $RS_SRC
+# Fill in the DAY declaration and delete the comment
+sed -Ei "s/(const DAY: &str = \")NN(\";) \/\/ TODO: Fill the day/\1$DAY\2/" $RS_SRC
+echo "Created $RS_SRC from template"
+
+touch input/$DAY.txt
+echo "Created placeholder input file"
