@@ -6,6 +6,7 @@ use core::panic;
 use std::collections::HashSet;
 use std::fs::File;
 use std::io::{BufRead, BufReader};
+use std::result::Result::Ok;
 
 const DAY: &str = "06";
 const INPUT_FILE: &str = concatcp!("input/", DAY, ".txt");
@@ -23,7 +24,7 @@ const TEST: &str = "\
 ......#...
 ";
 
-#[derive(std::fmt::Debug, Clone, Copy)]
+#[derive(std::fmt::Debug, Clone, Copy, PartialEq, Eq, Hash)]
 enum GuardPose {
     Up(Coord),
     Right(Coord),
@@ -86,8 +87,8 @@ fn main() -> Result<()> {
     //region Part 1
     println!("=== Part 1 ===");
 
-    fn part1<R: BufRead>(reader: R) -> Result<usize> {
-        let (guard, obstacles, size) = reader.lines().flatten().enumerate().fold(
+    fn parse<R: BufRead>(reader: R) -> (Option<GuardPose>, HashSet<Coord>, (usize, usize)) {
+        reader.lines().flatten().enumerate().fold(
             (None, HashSet::new(), (0, 0)),
             |(guard, mut obstacles, (old_width, _)), (y, line)| {
                 let mut guard = guard;
@@ -117,8 +118,12 @@ fn main() -> Result<()> {
                 });
                 (guard, obstacles, (width, y + 1))
             },
-        );
+        )
+    }
 
+    fn find_visited(
+        (guard, obstacles, size): (Option<GuardPose>, &HashSet<Coord>, &(usize, usize)),
+    ) -> Result<HashSet<Coord>> {
         let mut guard = match guard {
             Some(pose) => pose,
             None => panic!("No guard in input!"),
@@ -135,13 +140,27 @@ fn main() -> Result<()> {
         let mut visited = HashSet::new();
 
         while within(&guard, &size) {
-            visited.insert(guard.position());
+            let newly_added = visited.insert(guard);
+            if !newly_added {
+                return Err(Error::msg("Loop Detected"));
+            }
             let ahead = guard.see_forward();
             if obstacles.contains(&ahead) {
                 guard = guard.rotate();
+            } else {
+                guard = guard.move_forward();
             }
-            guard = guard.move_forward();
         }
+
+        Ok(HashSet::from_iter(
+            visited.iter().map(|pose| pose.position()),
+        ))
+    }
+
+    fn part1<R: BufRead>(reader: R) -> Result<usize> {
+        let (guard, obstacles, size) = parse(reader);
+
+        let visited = find_visited((guard, &obstacles, &size)).unwrap();
 
         Ok(visited.len())
     }
@@ -154,17 +173,71 @@ fn main() -> Result<()> {
     //endregion
 
     //region Part 2
-    // println!("\n=== Part 2 ===");
-    //
-    // fn part2<R: BufRead>(reader: R) -> Result<usize> {
-    //     Ok(0)
-    // }
-    //
-    // assert_eq!(0, part2(BufReader::new(TEST.as_bytes()))?);
-    //
-    // let input_file = BufReader::new(File::open(INPUT_FILE)?);
-    // let result = time_snippet!(part2(input_file)?);
-    // println!("Result = {}", result);
+    println!("\n=== Part 2 ===");
+
+    fn part2<R: BufRead>(reader: R) -> Result<usize> {
+        let (guard, obstacles, size) = parse(reader);
+
+        let visited = find_visited((guard, &obstacles, &size)).unwrap();
+
+        let loop_obstacles: HashSet<_> =
+            HashSet::from_iter(visited.iter().filter(|possible_obstacle| {
+                if **possible_obstacle == guard.unwrap().position() {
+                    return false;
+                }
+
+                let mut obstacles = obstacles.to_owned();
+                let newly_added = obstacles.insert(*possible_obstacle.to_owned());
+                if !newly_added {
+                    panic!("Re-added existing obstacle!");
+                }
+
+                // let obstacles = obstacles
+                //     .union(&HashSet::from([**possible_obstacle]))
+                //     .map(|v| v.to_owned())
+                //     .collect::<HashSet<_>>();
+
+                // let chained = obstacles.iter().chain(vec![*possible_obstacle]);
+                // let obstacles = HashSet::from(chained);
+
+                match find_visited((guard, &obstacles, &size)) {
+                    Ok(_) => false,
+                    Err(_) => true,
+                }
+            }));
+
+        // (0..size.1)
+        //     .map(|y| {
+        //         String::from_iter((0..size.0).map(|x| {
+        //             let coord = Coord {
+        //                 x: x.try_into().unwrap(),
+        //                 y: y.try_into().unwrap(),
+        //             };
+        //             let existing_obstacle = obstacles.contains(&coord);
+        //             let loop_obstacle = loop_obstacles.contains(&coord);
+        //             if existing_obstacle && !loop_obstacle {
+        //                 '#'
+        //             } else if loop_obstacle && !existing_obstacle {
+        //                 'O'
+        //             } else if !(existing_obstacle || loop_obstacle) {
+        //                 '.'
+        //             } else {
+        //                 '!'
+        //             }
+        //         }))
+        //     })
+        //     .for_each(|line| println!("{}", line));
+
+        // println!("{:?}", loop_obstacles);
+
+        Ok(loop_obstacles.len())
+    }
+
+    assert_eq!(6, part2(BufReader::new(TEST.as_bytes()))?);
+
+    let input_file = BufReader::new(File::open(INPUT_FILE)?);
+    let result = time_snippet!(part2(input_file)?);
+    println!("Result = {}", result);
     //endregion
 
     Ok(())
