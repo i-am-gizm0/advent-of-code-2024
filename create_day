@@ -44,3 +44,5 @@ echo "Created $RS_SRC from template"
 
 touch input/$DAY.txt
 echo "Created placeholder input file"
+
+code $RS_SRC
