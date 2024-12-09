@@ -1,6 +1,6 @@
 use std::{
     collections::HashSet,
-    ops::{Add, Neg, Sub},
+    ops::{Add, Mul, Neg, Sub},
 };
 
 pub fn start_day(day: &str) {
@@ -40,6 +40,15 @@ pub struct Delta {
     pub y: isize,
 }
 
+impl Delta {
+    pub fn pos(self) -> Self {
+        match self.x.is_positive() {
+            true => self,
+            false => -self,
+        }
+    }
+}
+
 impl Neg for Delta {
     type Output = Self;
 
@@ -47,6 +56,17 @@ impl Neg for Delta {
         Self {
             x: -self.x,
             y: -self.y,
+        }
+    }
+}
+
+impl Mul<isize> for Delta {
+    type Output = Self;
+
+    fn mul(self, rhs: isize) -> Self::Output {
+        Self {
+            x: self.x * rhs,
+            y: self.y * rhs,
         }
     }
 }
