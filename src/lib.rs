@@ -1,6 +1,6 @@
 use std::{
     collections::HashSet,
-    ops::{Add, Mul, Neg, Sub},
+    ops::{Add, Index, Mul, Neg, Sub},
 };
 
 pub fn start_day(day: &str) {
@@ -33,6 +33,16 @@ pub struct Coord {
 // }
 
 // impl Eq for Coord {}
+
+impl<T> Index<Coord> for Vec<Vec<T>> {
+    type Output = T;
+
+    fn index(&self, Coord { x, y }: Coord) -> &Self::Output {
+        let x: usize = x.try_into().unwrap();
+        let y: usize = y.try_into().unwrap();
+        &self[y][x]
+    }
+}
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub struct Delta {
