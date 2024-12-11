@@ -26,7 +26,7 @@ fn main() -> Result<()> {
     //region Part 1
     println!("=== Part 1 ===");
 
-    fn part1<R: BufRead>(reader: R) -> Result<usize> {
+    fn parse<R: BufRead>(reader: R) -> (Vec<Coord>, Vec<Vec<u32>>) {
         let mut trailheads: Vec<Coord> = Vec::new();
         let map = reader
             .lines()
@@ -48,47 +48,52 @@ fn main() -> Result<()> {
                     .collect_vec()
             })
             .collect_vec();
+        (trailheads, map)
+    }
 
-        fn neighbors(here: &Coord, map: &Vec<Vec<u32>>) -> Vec<Coord> {
-            let mut neighbors = Vec::new();
+    fn neighbors(here: &Coord, map: &Vec<Vec<u32>>) -> Vec<Coord> {
+        let mut neighbors = Vec::new();
 
-            let on_left_edge = here.x == 0;
-            let on_right_edge = here.x == (map.first().unwrap().len() - 1).try_into().unwrap();
+        let on_left_edge = here.x == 0;
+        let on_right_edge = here.x == (map.first().unwrap().len() - 1).try_into().unwrap();
 
-            let on_top_edge = here.y == 0;
-            let on_bottom_edge = here.y == (map.len() - 1).try_into().unwrap();
+        let on_top_edge = here.y == 0;
+        let on_bottom_edge = here.y == (map.len() - 1).try_into().unwrap();
 
-            if !on_left_edge {
-                neighbors.push(Coord {
-                    x: here.x - 1,
-                    y: here.y,
-                });
-            }
-
-            if !on_right_edge {
-                neighbors.push(Coord {
-                    x: here.x + 1,
-                    y: here.y,
-                });
-            }
-
-            if !on_top_edge {
-                neighbors.push(Coord {
-                    x: here.x,
-                    y: here.y - 1,
-                });
-            }
-
-            if !on_bottom_edge {
-                neighbors.push(Coord {
-                    x: here.x,
-                    y: here.y + 1,
-                });
-            }
-
-            neighbors
+        if !on_left_edge {
+            neighbors.push(Coord {
+                x: here.x - 1,
+                y: here.y,
+            });
         }
 
+        if !on_right_edge {
+            neighbors.push(Coord {
+                x: here.x + 1,
+                y: here.y,
+            });
+        }
+
+        if !on_top_edge {
+            neighbors.push(Coord {
+                x: here.x,
+                y: here.y - 1,
+            });
+        }
+
+        if !on_bottom_edge {
+            neighbors.push(Coord {
+                x: here.x,
+                y: here.y + 1,
+            });
+        }
+
+        neighbors
+    }
+
+    fn part1<R: BufRead>(reader: R) -> Result<usize> {
+        let (trailheads, map) = parse(reader);
+        
         fn unique_reachable_peaks(here: &Coord, map: &Vec<Vec<u32>>) -> Vec<Coord> {
             let here_elevation = map[*here];
             neighbors(here, map)
@@ -122,17 +127,39 @@ fn main() -> Result<()> {
     //endregion
 
     //region Part 2
-    // println!("\n=== Part 2 ===");
-    //
-    // fn part2<R: BufRead>(reader: R) -> Result<usize> {
-    //     Ok(0)
-    // }
-    //
-    // assert_eq!(0, part2(BufReader::new(TEST.as_bytes()))?);
-    //
-    // let input_file = BufReader::new(File::open(INPUT_FILE)?);
-    // let result = time_snippet!(part2(input_file)?);
-    // println!("Result = {}", result);
+    println!("\n=== Part 2 ===");
+
+    fn part2<R: BufRead>(reader: R) -> Result<usize> {
+        let (trailheads, map) = parse(reader);
+
+        fn unique_trails(here: &Coord, map: &Vec<Vec<u32>>) -> usize {
+            let here_elevation = map[*here];
+            neighbors(here, map)
+                .iter()
+                .map(|neighbor| {
+                    let neighbor_elevation = map[*neighbor];
+                    if neighbor_elevation != here_elevation + 1 {
+                        return 0;
+                    }
+                    if neighbor_elevation == 9 {
+                        return 1;
+                    }
+
+                    unique_trails(neighbor, map)
+                }).sum()
+        }
+
+        Ok(trailheads
+            .iter()
+            .map(|trailhead| unique_trails(trailhead, &map))
+            .sum())
+    }
+
+    assert_eq!(81, part2(BufReader::new(TEST.as_bytes()))?);
+
+    let input_file = BufReader::new(File::open(INPUT_FILE)?);
+    let result = time_snippet!(part2(input_file)?);
+    println!("Result = {}", result);
     //endregion
 
     Ok(())
