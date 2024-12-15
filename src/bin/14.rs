@@ -5,7 +5,8 @@ use const_format::concatcp;
 use itertools::Itertools;
 use std::collections::HashMap;
 use std::fs::File;
-use std::io::{BufRead, BufReader};
+use std::io::prelude::*;
+use std::io::{self, BufRead, BufReader};
 
 const DAY: &str = "14";
 const INPUT_FILE: &str = concatcp!("input/", DAY, ".txt");
@@ -92,8 +93,8 @@ fn main() -> Result<()> {
         }
     }
 
-    fn part1<R: BufRead>(reader: R, (width, height): (usize, usize)) -> Result<usize> {
-        let mut robots = reader
+    fn parse<R: BufRead>(reader: R, (width, height): (usize, usize)) -> Vec<Robot> {
+        reader
             .lines()
             .flatten()
             .map(|line| {
@@ -111,19 +112,13 @@ fn main() -> Result<()> {
                     },
                 }
             })
-            .collect_vec();
+            .collect_vec()
+    }
 
-        for _second in 0..100 {
-            robots = robots
-                .iter()
-                .map(|robot| robot.simulate((width, height)))
-                .collect_vec();
-        }
-        debug_robots(&robots, (width, height));
-
+    fn safety_factor(robots: &Vec<Robot>, (width, height): (usize, usize)) -> usize {
         let mid_x = width / 2;
         let mid_y = height / 2;
-        let safety_factor = robots
+        robots
             .iter()
             .into_group_map_by(|robot| {
                 let Coord { x, y } = robot.position;
@@ -153,9 +148,23 @@ fn main() -> Result<()> {
             .iter()
             .filter(|(group, _)| **group != 0)
             .map(|(_, robots)| robots.len())
-            .product();
+            .product()
+    }
 
-        Ok(safety_factor)
+    fn part1<R: BufRead>(reader: R, (width, height): (usize, usize)) -> Result<usize> {
+        let mut robots = parse(reader, (width, height));
+
+        for _second in 0..100 {
+            robots = robots
+                .iter()
+                .map(|robot| robot.simulate((width, height)))
+                .collect_vec();
+        }
+        debug_robots(&robots, (width, height));
+
+        let sf = safety_factor(&robots, (width, height));
+
+        Ok(sf)
     }
 
     assert_eq!(12, part1(BufReader::new(TEST.as_bytes()), (11, 7))?);
@@ -166,17 +175,42 @@ fn main() -> Result<()> {
     //endregion
 
     //region Part 2
-    // println!("\n=== Part 2 ===");
-    //
-    // fn part2<R: BufRead>(reader: R) -> Result<usize> {
-    //     Ok(0)
-    // }
-    //
+    println!("\n=== Part 2 ===");
+
+    fn pause() {
+        let mut stdin = io::stdin();
+        let mut stdout = io::stdout();
+
+        // We want the cursor to stay at the end of the line, so we print without a newline and flush manually.
+        write!(stdout, "Press any key to continue...").unwrap();
+        stdout.flush().unwrap();
+
+        // Read a single byte and discard
+        let _ = stdin.read(&mut [0u8]).unwrap();
+    }
+
+    fn part2<R: BufRead>(reader: R, (width, height): (usize, usize)) -> Result<usize> {
+        let mut robots = parse(reader, (width, height));
+
+        for i in 1..10000 {
+            robots = robots
+                .iter()
+                .map(|robot| robot.simulate((width, height)))
+                .collect_vec();
+
+            // debug_robots(&robots, (width, height));
+            // println!("\nIteration {}", i);
+            println!("{}\t{}", i, safety_factor(&robots, (width, height)));
+        }
+
+        Ok(0)
+    }
+
     // assert_eq!(0, part2(BufReader::new(TEST.as_bytes()))?);
-    //
-    // let input_file = BufReader::new(File::open(INPUT_FILE)?);
-    // let result = time_snippet!(part2(input_file)?);
-    // println!("Result = {}", result);
+
+    let input_file = BufReader::new(File::open(INPUT_FILE)?);
+    let result = time_snippet!(part2(input_file, (101, 103))?);
+    println!("Result = {}", result);
     //endregion
 
     Ok(())
